@@ -1,0 +1,37 @@
+---
+- name: Demo playbook to remove webserver 
+  hosts: client
+  tasks:
+
+#  - name: Stop service httpd, if started
+#    ansible.builtin.service:
+#      name: httpd
+#      state: stopped
+
+#  - name: Disable httpd service
+#    service:
+#      name: httpd
+#      enabled: false
+#
+  - name: Stop httpd service
+    command: "sudo systemctl stop httpd.service"
+
+  - name: Remove httpd package
+    dnf:
+      name: httpd
+      state: absent
+
+  - firewalld:
+      service: https
+      permanent: true
+      state: disabled
+
+  - firewalld:
+      service: http
+      permanent: true
+      state: disabled
+
+  - name: reload service firewalld
+    systemd:
+      name: firewalld
+      state: reloaded
