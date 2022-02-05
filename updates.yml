@@ -1,0 +1,74 @@
+
+---
+   - name: update A server
+     #serial: 1
+     hosts: all
+     vars:
+       fs: /var
+       min_size_avail_GB: 1
+       min_size_avail: "{{ min_size_avail_GB * 1024 * 1024 }}"
+
+     roles: 
+       - /home/ansible/testrole01
+
+     tasks:
+       - name: save available diskspace
+         shell: df {{ fs }} --output=avail | tail -1
+         register: fs_available
+         check_mode: false
+
+       - name: show available disk space
+         debug:
+           msg: "{{ fs_available.stdout }} en {{ min_size_avail }}"
+
+       - name: check available
+         assert:
+           that: (fs_available.stdout | int) > (min_size_avail | int)
+           msg: "No {{ min_size_avail_GB }} GB free on {{ fs }}, found {{ fs_available.stdout }} bytes"
+
+#       - name: install package-cleanup
+#         become: true
+#         package: 
+#           name: package-cleanup
+        
+       - name: Clean old kernels
+         become: yes
+         become_user: root
+         tags: Packageclean
+         shell: "package-cleanup --oldkernels --count=2 -y"
+         register: packageclean
+         ignore_errors: true  
+       
+       - name: Patch the server
+         become: yes
+         become_user: root
+         tags: Patch
+         shell: "yum clean all && yum -y update && yum clean all"
+         register: patchresult
+
+       # This pause of 30 seconds is mandatory, otherwise the existing control connection gets reused!
+       - name: wait for 30 seconds.
+         pause: seconds=30
+
+       - name: Reboot the server
+         tags: reboot
+         become: yes
+         become_user: root
+         shell: "sleep 5 && reboot"
+         async: 1
+         poll: 0
+
+       - name: Wait for the reboot and reconnect
+         wait_for:
+           port: 22
+           host: '{{(ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+           search_regex: OpenSSH
+           delay: 10
+           timeout: 120
+         connection: local
+
+       - name: Check the Uptime of the servers
+         shell: "uptime"
+         register: Uptime
+       - debug: var=Uptime
+

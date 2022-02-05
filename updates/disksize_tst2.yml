@@ -1,0 +1,21 @@
+---
+- name: check if filesystem has enough space available
+  hosts: client
+  vars:
+    fs: /usr
+    min_size_avail_GB: 10
+    min_size_avail: "{{ min_size_avail_GB * 1024 * 1024 }}"
+  tasks:
+    - name: save available
+      shell: df {{ fs }} --output=avail | tail -1
+      register: fs_available
+      check_mode: false
+
+    - name: show
+      debug:
+        msg: "{{ fs_available.stdout }} en {{ min_size_avail }}"
+
+    - name: check available
+      assert:
+        that: (fs_available.stdout | int) > (min_size_avail | int)
+        msg: "No {{ min_size_avail_GB }} GB free on {{ fs }}, found {{ fs_available.stdout }} bytes"

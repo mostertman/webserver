@@ -1,0 +1,25 @@
+---
+- name: Check Disk Space Usage
+  hosts: client
+#  tasks:
+#    - name: Disk usage from command module
+#      #command: 'df -ha /boot' 
+#      command: df -ha /boot | grep % | cut -d " " -f13 | grep % | sed 's/%//g'
+#      register: space
+#    - debug:
+#        var: space.stdout_lines
+
+  tasks:
+    - name: Check /boot freespace
+      shell: df /boot --output\=avail | tail -1
+      register: boot_freespace
+    
+    - name: show
+      debug:
+        msg: "{{ boot_freespace.stdout }}"
+
+      
+    - fail:
+        msg: /boot does not have the minimum space required to continue (3Gb requested). 
+      #when: boot_freespace.stdout < 3000000
+      when: boot_freespace.stdout < 777115
